@@ -1,0 +1,25 @@
+
+FROM node:16.20.2 AS deps
+WORKDIR /app
+COPY package.json ./
+RUN npm install --omit=dev
+
+FROM node:16.20.2 AS runner
+WORKDIR /app
+# add postgres client + CA bundle (Azure TLS)
+RUN apt-get install -y -qq postgresql-client-16 ca-certificates
+
+ENV NODE_ENV=production
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+RUN chmod +x ./scripts/pgdump_schema_table_azure_to_dock_node.sh
+
+USER node
+ENTRYPOINT ["node", "index.js"]
+
+
+
+# docker build . -t hhm_creds
+# docker run --rm   --name pg_manage-app   --env-file ./.env   pg_manage SME00445
+# docker run --rm   --name pg_manage-app   --env-file ./.env   pg_manage SME00445

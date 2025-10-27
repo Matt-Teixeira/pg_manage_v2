@@ -1,0 +1,11 @@
+{
+  "name": "copy-pg-schema",
+  "version": "1.0.0",
+  "description": "Dump schema from Azure Postgres and restore into local Postgres (Docker).",
+  "scripts": {
+    "schema": "node index.js schema"
+  },
+  "dependencies": {
+    "pg-promise": "^10.15.4"
+  }
+}
