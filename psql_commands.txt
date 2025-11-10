@@ -1,0 +1,20 @@
+Action	Command
+\l                  -- Show databases	
+\c database_name    -- Connect to a database
+\c postgres         -- Back to top level
+\dt                 -- Show tables in current DB
+\d                  -- Show all relations	
+\d table_name       -- Describe a table
+\! clear            -- Clear console
+\! reset            -- Clear console and history
+\q                  -- Quit psql
+
+
+\dn                 -- list schemas
+\dt *.*             -- list tables in all schemas
+\dt schema_name.*   -- just one schema
+\dt+ *.*            - include sizes/extra info
+\dv *.*             -- views
+\dm *.*             -- materialized views
+\ds *.*             -- sequences
+\dS                 -- include system objects in listings

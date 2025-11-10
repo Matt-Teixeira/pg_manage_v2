@@ -3,7 +3,7 @@ set -euo pipefail
 shopt -s extglob  # for safe trimming if you add guards
 
 # Required env (fail fast if missing)
-req=(SRC_HOST SRC_DB SRC_USER SRC_PASSWORD DST_HOST DST_DB DST_USER DST_PASSWORD TABLES)
+req=(SRC_HOST SRC_DB SRC_USER SRC_PASSWORD DST_HOST DST_DB DST_USER DST_PASSWORD)
 for v in "${req[@]}"; do
   : "${!v:?Missing required env: $v}"
 done
@@ -17,11 +17,11 @@ DST_SSLMODE="${DST_SSLMODE:-disable}"       # local docker typically no TLS
 
 echo "Source: $SRC_USER@$SRC_HOST:$SRC_PORT/$SRC_DB (sslmode=$SRC_SSLMODE sslrootcert=$SRC_SSLROOTCERT)"
 echo "Dest:   $DST_USER@$DST_HOST:$DST_PORT/$DST_DB (sslmode=$DST_SSLMODE)"
-echo "Tables: $TABLES"
+echo "Tables: $UTIL_TABLES"
 echo
 
-# Loop each schema-qualified table in $TABLES (space-separated, e.g. "public.customers public.sites")
-for t in $TABLES; do
+# Loop each schema-qualified table in $*_TABLES (space-separated, e.g. "public.customers public.sites")
+for t in $UTIL_TABLES; do
   sch="${t%%.*}"
   tbl="${t#*.}"
   echo "→ Syncing ${sch}.${tbl}"

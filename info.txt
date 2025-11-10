@@ -1,9 +1,0 @@
-1) Local psql
-psql -h localhost -p 5432 -U postgres -d postgres
-PW: AidEaBbXJX97VjYP6b
-
-2) Connect to docker Postgres image:
-docker exec -it pg_db psql -U postgres -d dev
-
-)Check volumes:
-docker inspect pg_db | grep Mounts -A 10

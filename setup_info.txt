@@ -1,0 +1,52 @@
+1. git clone git@github.com:Matt-Teixeira/pg_manage_v2.git
+2. Create and populate .env
+3. Build your image (if not already) from Dockerfile
+~ docker build -t pg_manage .
+4. Create database if not already exists
+5. Copy Tables and Schemas -> Run: 1_pgdump_tables_to_local.sh
+
+docker run --rm \
+  --add-host=host.docker.internal:host-gateway \
+  --env-file .env \
+  -v "$PWD":/app -w /app \
+  --entrypoint bash \
+  pg_manage \
+  -lc './scripts/azure_to_local_migration/1_pgdump_tables_to_local.sh'
+
+-- this will copy all Table, Schemas, Triggers, Constraints, Indexes, Views, Sequences, and Extensions via CREATE EXTENSION (must exist on the destination)
+
+6. Copy table data -> Run: 2_pgdump_data_to_local.sh
+
+docker run --rm \
+  --add-host=host.docker.internal:host-gateway \
+  --env-file .env \
+  -v "$PWD":/app -w /app \
+  --entrypoint bash \
+  pg_manage \
+  -lc './scripts/azure_to_local_migration/2_pgdump_data_to_local.sh'
+
+-- # BRING IN ALL DATA: switch out vars (.env) and run
+PUBLIC_TABLES=public.customers public.sites public.systems public.users public.acumatica_systems public.clients public.hhm_credentials public.knowledge_ge_ct public.knowledge_ge_cv public.knowledge_ge_cv_two public.knowledge_phil_ct public.knowledge_phil_cv public.knowledge_siemens_ct_va4 public.knowledge_siemens_ct_vb42 public.knowledge_siemens_cv public.logfile_event_history_metadata public.network_issues public.parsed_fields public.site_groups public.user_site_groups public.site_group_sites public.user_logs
+ALERT_TABLES=alert.detections alert.models alert.notifications alert.offline_hhm_conn alert.offline_mmb_conn alert.reports alert.templates
+CONFIG_TABLES=config.acquisition config.edu config.he_tank_volumes config.log config.mag
+EDU_TABLES=edu.v1 edu.v1_units edu.v2 edu.v2_units
+KDB_TABLES=kdb.ge_ct kdb.ge_cv kdb.philips_ct kdb.philips_cv kdb.siemens_ct kdb.siemens_cv
+LIFE_TABLES=life.life_cycle
+UTIL_TABLES=util.app_run_logs util.ip_sec util.regex_models
+
+7.Copy datetime constrained table data -> Run: 3_pgdump_data_to_local_time_cond.sh
+
+docker run --rm \
+  --add-host=host.docker.internal:host-gateway \
+  --env-file .env \
+  -v "$PWD":/app -w /app \
+  --entrypoint bash \
+  pg_manage \
+  -lc './scripts/azure_to_local_migration/3_pgdump_data_to_local_time_cond.sh'
+
+
+-- # TIME CONSTRAINT TABLES (.env)
+LOG_TABLES=log.ge_ct_gesys log.ge_cv_syserror log.ge_mri_gesys log.philips_ct_eal_events log.philips_cv_eventlog log.siemens_ct log.siemens_mri log.philips_mri_logcurrent log.stt_magnet
+MAG_TABLES=mag.ge_mm3 mag.ge_mm4 mag.philips_mri_monitoring_data_agg mag.philips_mri_rmmu_history mag.philips_mri_rmmu_long mag.philips_mri_rmmu_short mag.philips_mri_rmmu_magnet mag.siemens mag.siemens_non_tim mag.stt_magnet
+DAYS_BACK=2
+DATE_COL_DEFAULT=capture_datetime
