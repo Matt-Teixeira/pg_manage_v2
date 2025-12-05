@@ -1,0 +1,3 @@
+chmod +x one_piece.sh
+./one_piece.sh
+# then edit the three .env files
