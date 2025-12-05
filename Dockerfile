@@ -21,8 +21,6 @@ ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN chmod +x ./scripts/pgdump_schema_table_azure_to_dock_node.sh
-
 USER node
 ENTRYPOINT ["node", "index.js"]
 
