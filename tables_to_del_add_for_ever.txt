@@ -7,3 +7,7 @@ info.ge_ct
 In STAGING not in PROD
 relation "util.unit_verifier" does not exist
 relation "edu.std" does not exist
+
+
+ADD
+monday.acumatica_rtt_feed

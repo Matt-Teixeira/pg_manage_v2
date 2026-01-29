@@ -3,18 +3,25 @@
 # WARNING: Truncates destination tables first (destructive).
 set -euo pipefail
 
-# --- Source (Azure PROD) ---
-export SRC_HOST='prod-avante-connected.postgres.database.azure.com'
-export SRC_DB='prod'
-export SRC_USER='avantehs_admin'
-export SRC_PW='Drm2nz3x^8of&QyAS5Ssn82VLfcCnu$G'   # <-- PROD password
+# --- Load .env (enable via LOAD_ENV=true for standalone runs) ---
+if [[ "${LOAD_ENV:-false}" == "true" && -f "${ENV_FILE:-.env}" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "${ENV_FILE:-.env}"
+  set +a
+fi
 
-# --- Destination (Azure STAGING) ---
-export DST_HOST='staging-avante-connnected.postgres.database.azure.com'
-export DST_DB='staging'
-export DST_USER='avantehs_admin'
-export DST_PW='hLRbc47Ngp%F77p%pTASk^MHs2ZF'       # <-- STAGING password
- 
+# --- Map PROD/STAGING credentials to SRC/DST for Docker container ---
+export SRC_HOST="${PROD_HOST:?Missing PROD_HOST}"
+export SRC_DB="${PROD_DB:?Missing PROD_DB}"
+export SRC_USER="${PROD_USER:?Missing PROD_USER}"
+export SRC_PW="${PROD_PW:?Missing PROD_PW}"
+
+export DST_HOST="${STAGING_HOST:?Missing STAGING_HOST}"
+export DST_DB="${STAGING_DB:?Missing STAGING_DB}"
+export DST_USER="${STAGING_USER:?Missing STAGING_USER}"
+export DST_PW="${STAGING_PW:?Missing STAGING_PW}"
+
 # --- How far back to pull filtered rows ---
 export DAYS_BACK="${DAYS_BACK:-2}"
 
@@ -23,7 +30,7 @@ export DAYS_BACK="${DAYS_BACK:-2}"
 export DATE_COL_DEFAULT="${DATE_COL_DEFAULT:-inserted_at}"
 
 # --- Tables to copy (space-separated). Examples:
-export FILTERED_TABLES='alert.detections'
+export FILTERED_TABLES="${FILTERED_TABLES:-alert.detections}"
 # -- LOG --
 # log.ge_ct_gesys log.ge_cv_syserror log.ge_mri_gesys log.philips_ct_eal_events log.philips_cv_eventlog log.siemens_ct log.siemens_mri log.stt_magnet
 # log.philips_mri_logcurrent

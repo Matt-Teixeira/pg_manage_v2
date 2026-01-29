@@ -23,11 +23,15 @@ async function run_job(env_arg_1) {
 }
 
 async function on_boot() {
-  const env_arg_1 = process.argv[4];
+  try {
+    const env_arg_1 = process.argv[4];
 
-  console.log("\nprocess.argv");
-  console.log(process.argv);
+    console.log("\nprocess.argv");
+    console.log(process.argv);
 
-  await run_job(env_arg_1);
+    await run_job(env_arg_1);
+  } catch (error) {
+    console.log(error);
+  }
 }
 on_boot();
