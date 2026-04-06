@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/matt-teixeira/apps/**)",
+      "Bash(git -C /home/matt-teixeira/apps/pg_manage_v2 log --all --oneline)",
+      "Bash(xargs ls:*)",
+      "Bash(grep -r \"network\\\\|compose\\\\|service\\\\|container\" /home/matt-teixeira/apps/pg_manage_v2 --include=*.md --include=*.txt)"
+    ]
+  }
+}
