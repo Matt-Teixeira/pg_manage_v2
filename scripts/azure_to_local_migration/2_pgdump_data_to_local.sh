@@ -17,11 +17,11 @@ DST_SSLMODE="${DST_SSLMODE:-disable}"       # local docker typically no TLS
 
 echo "Source: $SRC_USER@$SRC_HOST:$SRC_PORT/$SRC_DB (sslmode=$SRC_SSLMODE sslrootcert=$SRC_SSLROOTCERT)"
 echo "Dest:   $DST_USER@$DST_HOST:$DST_PORT/$DST_DB (sslmode=$DST_SSLMODE)"
-echo "Tables: $UTIL_TABLES"
+echo "Tables: $NEW_SCHEMA_PORT"
 echo
 
 # Loop each schema-qualified table in $*_TABLES (space-separated, e.g. "public.customers public.sites")
-for t in $UTIL_TABLES; do
+for t in $NEW_SCHEMA_PORT; do
   sch="${t%%.*}"
   tbl="${t#*.}"
   echo "→ Syncing ${sch}.${tbl}"
