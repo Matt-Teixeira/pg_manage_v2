@@ -19,7 +19,7 @@ SRC_SSLROOTCERT="${SRC_SSLROOTCERT:-system}"
 DST_SSLMODE="${DST_SSLMODE:-disable}"          # local docker usually no TLS
 
 # What to copy
-TABLES="${MAG_TABLES:-}"                 # e.g. "public.users public.site_groups"
+TABLES="${EDU_TABLES:-}"                 # e.g. "public.users public.site_groups"
 : "${TABLES:?Set TABLES to one or more schema-qualified tables}"
 
 # Date filtering
