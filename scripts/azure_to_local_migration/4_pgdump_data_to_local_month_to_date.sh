@@ -23,11 +23,10 @@ TABLES="${PHILIPS_LOGCURRENT:-}"                 # e.g. "public.users public.sit
 : "${TABLES:?Set TABLES to one or more schema-qualified tables}"
 
 # Date filtering
-DAYS_BACK="${DAYS_BACK:-2}"                    # e.g. 2 means NOW() - interval '2 days'
+# Unlike 3_pgdump_data_to_local_time_cond.sh (which uses DAYS_BACK/SINCE_TIMESTAMP),
+# this script always pulls month-to-date: from the first minute of the current month through now.
 DATE_COL_DEFAULT="${DATE_COL_DEFAULT:-capture_datetime}"
 DATE_COL_OVERRIDES="${DATE_COL_OVERRIDES:-}"   # e.g. "public.events:created_at public.logs:inserted_at"
-# Optional absolute start time override (RFC3339/ISO). If set, it wins over DAYS_BACK.
-SINCE_TIMESTAMP="${SINCE_TIMESTAMP:-}"         # e.g. "2025-11-01T00:00:00Z"
 
 # Load strategy
 TRUNCATE_MODE="${TRUNCATE_MODE:-true}"         # true/false: truncate destination before loading
@@ -36,8 +35,7 @@ RESTART_IDENTITY="${RESTART_IDENTITY:-false}"  # true/false: only used if TRUNCA
 echo "Source: $SRC_USER@$SRC_HOST:$SRC_PORT/$SRC_DB (sslmode=$SRC_SSLMODE sslrootcert=$SRC_SSLROOTCERT)"
 echo "Dest:   $DST_USER@$DST_HOST:$DST_PORT/$DST_DB (sslmode=$DST_SSLMODE)"
 echo "Tables: $TABLES"
-echo "Window: ${SINCE_TIMESTAMP:+since=$SINCE_TIMESTAMP} ${SINCE_TIMESTAMP:+"(overrides DAYS_BACK)"} ${SINCE_TIMESTAMP:+" "}${SINCE_TIMESTAMP:=""} ${SINCE_TIMESTAMP:+" "}"
-echo "         ${SINCE_TIMESTAMP:+" "}${SINCE_TIMESTAMP:=""}DAYS_BACK=$DAYS_BACK, DATE_COL_DEFAULT=$DATE_COL_DEFAULT"
+echo "Window: month-to-date (since first of current month), DATE_COL_DEFAULT=$DATE_COL_DEFAULT"
 [[ -n "$DATE_COL_OVERRIDES" ]] && echo "Overrides: $DATE_COL_OVERRIDES"
 echo
 
@@ -52,14 +50,8 @@ if [[ -n "$DATE_COL_OVERRIDES" ]]; then
   done
 fi
 
-# Resolve cutoff expression used on SOURCE side
-if [[ -n "$SINCE_TIMESTAMP" ]]; then
-  # Use a parameterized literal timestamp at source
-  CUTOFF_SQL="(TIMESTAMPTZ '$SINCE_TIMESTAMP')"
-else
-  # Use interval on the server side
-  CUTOFF_SQL="(NOW() - INTERVAL '${DAYS_BACK} days')"
-fi
+# Resolve cutoff expression used on SOURCE side: first minute of the current month.
+CUTOFF_SQL="(date_trunc('month', NOW()))"
 
 for t in $TABLES; do
   sch="${t%%.*}"
@@ -122,4 +114,4 @@ SQL_CHECK
   echo
 done
 
-echo "Recent rows copy complete ✅"
+echo "Month-to-date rows copy complete ✅"
