@@ -24,10 +24,10 @@ SRC_SSLROOTCERT="${SRC_SSLROOTCERT:-system}"       # or a path to the CA cert
 DST_SSLMODE="${DST_SSLMODE:-disable}"              # local Docker usually no SSL
 
 # --- Ensure destination DB exists ---
-if ! PGSSLMODE=disable PGPASSWORD="$DST_PASSWORD" \
+if ! PGSSLMODE="$DST_SSLMODE" PGPASSWORD="$DST_PASSWORD" \
      psql -h "$DST_HOST" -p "$DST_PORT" -U "$DST_USER" -d postgres -tAc \
      "SELECT 1 FROM pg_database WHERE datname = '${DST_DB}'" | grep -q 1; then
-  PGSSLMODE=disable PGPASSWORD="$DST_PASSWORD" \
+  PGSSLMODE="$DST_SSLMODE" PGPASSWORD="$DST_PASSWORD" \
     psql -h "$DST_HOST" -p "$DST_PORT" -U "$DST_USER" -d postgres -v ON_ERROR_STOP=1 -qc \
     "CREATE DATABASE \"${DST_DB}\";"
 fi
