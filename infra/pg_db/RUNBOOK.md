@@ -1,4 +1,11 @@
-# pg_db recreate runbook (DRAFT — plan item 10)
+# pg_db recreate runbook (plan item 10 — EXECUTED 2026-08-18)
+
+> **Executed 2026-08-18 14:17 UTC.** All verification gates passed: healthy in 8 s; no
+> `POSTGRES_PASSWORD` in container metadata (SEC-05); non-SSL TCP rejected (hostssl intact);
+> dd-agent denied on the relocated key (SEC-06); `pg_stat_statements` preloaded + extension
+> live (DB-06, folded into the same restart); first cron cycle after the swap logged 21 runs
+> to `util.app_run_logs` with zero fatal outcomes. Kept as the reference procedure for new
+> servers / rollback.
 
 **What this does:** replaces the hand-launched pg_db container with the tracked compose
 definition. The data volume is external and untouched — this is a container swap, not a
@@ -62,5 +69,5 @@ both definitions point at the same external volume.
 
 - Memory limits/reservations — measure first (DB-04), June OOM still uninvestigated.
 - Private interface binding (SEC-11) — NSG is the boundary today; revisit in doc 2.1.
-- `shared_preload_libraries=pg_stat_statements` (DB-06) — worth adding at the SAME
-  restart if decided in time, since it needs one; flag for Matt.
+- ~~`shared_preload_libraries=pg_stat_statements` (DB-06)~~ — **decided yes and included
+  in the 2026-08-18 swap**; the flag is in the compose command and the extension is created.

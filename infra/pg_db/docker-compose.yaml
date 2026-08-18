@@ -43,6 +43,7 @@ services:
       -c ssl=on
       -c ssl_cert_file=/etc/ssl/pg_ssl.crt
       -c ssl_key_file=/etc/ssl/pg_ssl.key
+      -c shared_preload_libraries=pg_stat_statements
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d staging"]
       interval: 30s
