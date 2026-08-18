@@ -23,7 +23,7 @@ set -uo pipefail
 LOG=/opt/run-logs/partition-watchdog.log
 HORIZON_MONTHS="${HORIZON_MONTHS:-2}"
 
-result=$(docker exec -i pg_db psql -U postgres -d staging -tA -v ON_ERROR_STOP=1 <<SQL 2>&1
+result=$(docker exec -i pg_db psql -U postgres -d "${PG_DB:-staging}" -tA -v ON_ERROR_STOP=1 <<SQL 2>&1
 WITH parents AS (
   SELECT pt.partrelid AS oid
   FROM pg_partitioned_table pt

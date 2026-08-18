@@ -14,6 +14,9 @@
 set -euo pipefail
 
 BASE=/opt/resources/backups
+# The database name is per-server (dev / staging / prod — see the setup doc's
+# server-identity table). Override via environment or edit the default here.
+PG_DB="${PG_DB:-staging}"
 PG_KEEP_DAYS=7        # pg dumps are large (>10 GB) — keep a week locally
 REDIS_KEEP_DAYS=14    # RDBs are small — keep two weeks
 DATE=$(date +%Y%m%d-%H%M)
@@ -34,9 +37,9 @@ fail() { echo "$(date -Is) FAILED: $*" | tee -a "$LOG" >&2; exit 1; }
 # still dumped (restores as an empty table). Remove the flag once the Phase-2
 # retention cleanup shrinks the table. Full reference dumps incl. this table:
 # staging-20260727-1933.dump.initial and staging-20260817-1324.dump.full.
-PG_OUT="$BASE/pg/staging-$DATE.dump"
-docker exec pg_db pg_dump -U postgres -Fc --exclude-table-data='log.saved_files' staging > "$PG_OUT" \
-  || fail "pg_dump staging"
+PG_OUT="$BASE/pg/$PG_DB-$DATE.dump"
+docker exec pg_db pg_dump -U postgres -Fc --exclude-table-data='log.saved_files' "$PG_DB" > "$PG_OUT" \
+  || fail "pg_dump $PG_DB"
 # A truncated dump is worse than none: verify the archive is listable.
 docker exec -i pg_db pg_restore --list < "$PG_OUT" > /dev/null \
   || fail "pg_restore --list on $PG_OUT (dump unreadable)"
@@ -57,7 +60,7 @@ for r in redis-PROD redis-STAGING redis_dev-0-4 redis_dev-0-5; do
 done
 
 # --- Retention --------------------------------------------------------------
-find "$BASE/pg"    -name 'staging-*.dump' -mtime +"$PG_KEEP_DAYS"    -delete
+find "$BASE/pg"    -name "$PG_DB-*.dump" -mtime +"$PG_KEEP_DAYS"    -delete
 find "$BASE/redis" -name '*.rdb'          -mtime +"$REDIS_KEEP_DAYS" -delete
 
 echo "$(date -Is) OK pg=$(du -h "$PG_OUT" | cut -f1) redis=4 instances" | tee -a "$LOG"

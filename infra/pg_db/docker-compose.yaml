@@ -67,7 +67,9 @@ services:
       -c ssl_key_file=/etc/ssl/pg_ssl.key
       -c shared_preload_libraries=pg_stat_statements
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d staging"]
+      # No -d <db>: the app database name is per-server (dev/staging/prod), and
+      # pg_isready against the default maintenance DB proves readiness anywhere.
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 30s
       timeout: 5s
       retries: 5
