@@ -1,0 +1,53 @@
+# pg_db — declarative definition (DRAFT for review, plan item 10)
+# Replaces the hand-run `docker run` from 2026-06. Fixes, per audit:
+#   SEC-05: password via root-only secret FILE — never in container metadata
+#   DB-04:  healthcheck (memory guardrails deliberately deferred — see runbook)
+#   SEC-06: TLS key relocated so host uid-999 (dd-agent) cannot traverse to it
+#
+# Home (decided 2026-08-18): pg_manage_v2/infra/pg_db/ — grouped with the other DB tooling.
+# The externals below reuse the EXISTING volume/network — no data is touched.
+
+name: pg-infra
+
+services:
+  pg_db:
+    image: postgres:16
+    container_name: pg_db            # apps resolve PGHOST=pg_db by this name
+    restart: unless-stopped
+    networks: [pg_net]
+    ports:
+      - "5432:5432"                  # NSG remains the boundary (SEC-11 note:
+                                     # private-bind decision deferred, doc 2.1)
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_pw
+    secrets:
+      - pg_pw
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - /opt/resources/ssl/pg_ssl.crt:/etc/ssl/pg_ssl.crt:ro
+      - /opt/resources/ssl/private/pg_ssl.key:/etc/ssl/pg_ssl.key:ro
+    command: >
+      -c ssl=on
+      -c ssl_cert_file=/etc/ssl/pg_ssl.crt
+      -c ssl_key_file=/etc/ssl/pg_ssl.key
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d staging"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    # Memory limits: NOT set in this draft on purpose. DB-04 says size from
+    # observed peaks, and the June OOM is still uninvestigated. Add a
+    # deploy.resources.limits block only after a measurement pass.
+
+networks:
+  pg_net:
+    external: true                   # existing network, apps already attached
+
+volumes:
+  postgres_data:
+    external: true                   # EXISTING data volume — reused, not created
+
+secrets:
+  pg_pw:
+    file: /root/pg_superuser_pw      # root-owned 0600; see runbook step 2
