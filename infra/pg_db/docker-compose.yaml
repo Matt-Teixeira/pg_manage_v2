@@ -18,10 +18,23 @@ services:
     ports:
       - "5432:5432"                  # NSG remains the boundary (SEC-11 note:
                                      # private-bind decision deferred, doc 2.1)
-    environment:
-      POSTGRES_PASSWORD_FILE: /run/secrets/pg_pw
-    secrets:
-      - pg_pw
+    # NO password variable here, deliberately (this is the SEC-05 fix).
+    # postgres:16's entrypoint only requires POSTGRES_PASSWORD/_FILE when it is
+    # INITIALIZING an empty data directory (docker_verify_minimum_env runs only
+    # inside `if [ -z "$DATABASE_ALREADY_EXISTS" ]`). postgres_data is already
+    # initialized, so the value would be read by nothing while still showing up
+    # in `docker inspect`. The role password lives in the DB catalog; rotate it
+    # with `\password`, never here.
+    #
+    # BUILDING A NEW SERVER (empty volume)? Initialization DOES need it. Create
+    # a root-only file first, then uncomment these two lines and the `secrets:`
+    # block at the bottom:
+    #   sudo install -m 600 -o root -g root /dev/null /root/pg_superuser_pw
+    #   # write the intended superuser password into it, one line, no newline
+    # environment:
+    #   POSTGRES_PASSWORD_FILE: /run/secrets/pg_pw
+    # secrets:
+    #   - pg_pw
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - /opt/resources/ssl/pg_ssl.crt:/etc/ssl/pg_ssl.crt:ro
@@ -48,6 +61,8 @@ volumes:
   postgres_data:
     external: true                   # EXISTING data volume — reused, not created
 
-secrets:
-  pg_pw:
-    file: /root/pg_superuser_pw      # root-owned 0600; see runbook step 2
+# Only needed when initializing an EMPTY volume (new server). See the note on
+# the service above; leave commented on a server whose database already exists.
+# secrets:
+#   pg_pw:
+#     file: /root/pg_superuser_pw    # root-owned 0600

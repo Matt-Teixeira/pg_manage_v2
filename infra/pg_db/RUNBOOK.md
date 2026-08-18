@@ -11,15 +11,14 @@ self-heal on the next.
 ## Pre-flight (no downtime)
 
 1. Fresh backup exists and `backup.log` shows OK (nightly, or run `backup.sh` by hand).
-2. Create the bootstrap secret file with the **current (rotated)** password —
-   root-only, and interactive so nothing lands in shell history:
-   ```bash
-   sudo install -m 600 -o root -g root /dev/null /root/pg_superuser_pw
-   sudo bash -c 'read -rs -p "pw: " PW; printf "%s" "$PW" > /root/pg_superuser_pw; echo'
-   ```
-   (Note: an initialized cluster ignores this at boot — it exists for metadata hygiene
-   and for the day the volume is ever re-initialized. Wrong value = confusing future
-   bootstrap, so set it correctly.)
+2. ~~Create a bootstrap secret file~~ — **not required on this server (removed 2026-08-18).**
+   Verified against `postgres:16`'s entrypoint: `docker_verify_minimum_env` — the check that
+   demands `POSTGRES_PASSWORD`/`_FILE` — runs only inside `if [ -z "$DATABASE_ALREADY_EXISTS" ]`,
+   i.e. only when initializing an EMPTY data directory. `postgres_data` is already initialized,
+   so the value would be read by nothing while still appearing in `docker inspect` — exactly what
+   SEC-05 asks us to remove. The role password lives in the database catalog; rotate it with
+   `\password`. The compose file carries commented-out secret plumbing for the **new server**
+   case, where initialization genuinely does need it.
 3. Fix the SEC-06 key exposure (dd-agent uid collision) — move the key into a
    root-only directory; the container still reads it via the bind mount, but host
    uid 999 can no longer traverse to it:
