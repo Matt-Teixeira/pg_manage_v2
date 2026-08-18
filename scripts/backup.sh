@@ -32,13 +32,12 @@ flock -n 9 || { echo "$(date -Is) SKIPPED: previous backup still running" >> "$L
 fail() { echo "$(date -Is) FAILED: $*" | tee -a "$LOG" >&2; exit 1; }
 
 # --- PostgreSQL -------------------------------------------------------------
-# NOTE (2026-08-17): log.saved_files DATA is excluded — the raw-file blob table
-# grew to 130+ GB (audit DB-05) and quintupled dump size/time. Its schema is
-# still dumped (restores as an empty table). Remove the flag once the Phase-2
-# retention cleanup shrinks the table. Full reference dumps incl. this table:
-# staging-20260727-1933.dump.initial and staging-20260817-1324.dump.full.
+# log.saved_files is INCLUDED again as of 2026-08-18: its 48 h retention was
+# restored (backlog purged, clear_old_db_files on :05/:35 — audit DB-05), so it
+# adds only ~6 GB of incompressible blobs. If this dump ever balloons, check
+# that retention job's outcomes before touching this script.
 PG_OUT="$BASE/pg/$PG_DB-$DATE.dump"
-docker exec pg_db pg_dump -U postgres -Fc --exclude-table-data='log.saved_files' "$PG_DB" > "$PG_OUT" \
+docker exec pg_db pg_dump -U postgres -Fc "$PG_DB" > "$PG_OUT" \
   || fail "pg_dump $PG_DB"
 # A truncated dump is worse than none: verify the archive is listable.
 docker exec -i pg_db pg_restore --list < "$PG_OUT" > /dev/null \
