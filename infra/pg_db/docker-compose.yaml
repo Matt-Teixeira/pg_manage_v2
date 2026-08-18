@@ -37,8 +37,30 @@ services:
     #   - pg_pw
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - /opt/resources/ssl/pg_ssl.crt:/etc/ssl/pg_ssl.crt:ro
-      - /opt/resources/ssl/private/pg_ssl.key:/etc/ssl/pg_ssl.key:ro
+      # Long-form binds with create_host_path:false — on a host where the cert or
+      # key is missing (new server, wrong path), `up` fails with a clear error
+      # instead of Docker silently creating an empty DIRECTORY at the source path
+      # and postgres crash-looping on it (REL-09 class trap).
+      - type: bind
+        source: /opt/resources/ssl/pg_ssl.crt
+        target: /etc/ssl/pg_ssl.crt
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /opt/resources/ssl/private/pg_ssl.key
+        target: /etc/ssl/pg_ssl.key
+        read_only: true
+        bind:
+          create_host_path: false
+    # Cap container log growth (audit OPS-02): json-file grows unbounded by
+    # default. Applied per-service in tracked compose (not daemon.json) so a
+    # rebuilt server gets it for free. Takes effect at next recreate.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     command: >
       -c ssl=on
       -c ssl_cert_file=/etc/ssl/pg_ssl.crt
