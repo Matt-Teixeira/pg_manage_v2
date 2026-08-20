@@ -45,15 +45,11 @@ docker exec -i pg_db pg_restore --list < "$PG_OUT" > /dev/null \
 
 # --- Redis ------------------------------------------------------------------
 # redis-cli exits 0 even when the server refuses the command (e.g. NOAUTH), so
-# the reply text must be checked — exit codes are meaningless here. The three
-# auth'd instances read their own mounted auth.conf (REDIS-01 rollout
-# 2026-08-18); redis-STAGING remains passwordless by design (odd-jobs).
+# the reply text must be checked — exit codes are meaningless here. All four
+# instances read their own mounted auth.conf (REDIS-01 rollout 2026-08-18;
+# redis-STAGING auth'd since 2026-08-19).
 for r in redis-PROD redis-STAGING redis_dev-0-4 redis_dev-0-5; do
-  if [ "$r" = "redis-STAGING" ]; then
-    out=$(docker exec "$r" redis-cli SAVE)
-  else
-    out=$(docker exec "$r" sh -c 'redis-cli -a "$(awk "/^requirepass/{print \$2}" /usr/local/etc/redis/auth.conf)" --no-auth-warning SAVE')
-  fi
+  out=$(docker exec "$r" sh -c 'redis-cli -a "$(awk "/^requirepass/{print \$2}" /usr/local/etc/redis/auth.conf)" --no-auth-warning SAVE')
   [ "$out" = "OK" ] || fail "SAVE on $r (reply: $out)"
   docker cp -q "$r:/data/dump.rdb" "$BASE/redis/$r-$DATE.rdb" || fail "copy RDB from $r"
 done
