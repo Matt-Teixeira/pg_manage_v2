@@ -20,6 +20,13 @@
 
 set -uo pipefail
 
+# Release provenance: build-release.sh stamps RELEASE_SHA into the .env one
+# level up; each appended log line carries it ('dev-tree' in a dev clone).
+# grep a single key, never `source` a fleet .env (values may contain $$).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RELEASE_SHA="$(grep -m1 '^RELEASE_SHA=' "$SCRIPT_DIR/../.env" 2>/dev/null | cut -d= -f2)"
+RELEASE_SHA="${RELEASE_SHA:-dev-tree}"
+
 LOG=/opt/run-logs/partition-watchdog.log
 HORIZON_MONTHS="${HORIZON_MONTHS:-2}"
 
@@ -51,14 +58,14 @@ rc=$?
 
 ts=$(date -Is)
 if [ $rc -ne 0 ]; then
-  echo "$ts CHECK-FAILED rc=$rc: $result" >> "$LOG"
+  echo "$ts CHECK-FAILED rc=$rc sha=$RELEASE_SHA: $result" >> "$LOG"
   echo "PARTITION WATCHDOG: check itself failed (rc=$rc) — verify pg_db and this script. $result"
   exit 1
 fi
 
 if [ -n "$result" ]; then
   n=$(echo "$result" | wc -l)
-  echo "$ts ALERT $n parent(s) below horizon (+${HORIZON_MONTHS}mo): $(echo "$result" | tr '\n' ' ')" >> "$LOG"
+  echo "$ts ALERT $n parent(s) below horizon (+${HORIZON_MONTHS}mo) sha=$RELEASE_SHA: $(echo "$result" | tr '\n' ' ')" >> "$LOG"
   echo "PARTITION WATCHDOG ALERT: $n partitioned table(s) lack coverage through next month."
   echo "The odd-jobs pg-part-arch run (1st of month, svc crontab) may have failed — check"
   echo "/opt/run-logs/odd-jobs/ and coordinate with its owner. Do NOT hand-create partitions"
@@ -67,5 +74,5 @@ if [ -n "$result" ]; then
   exit 1
 fi
 
-echo "$ts OK all parents covered through month+${HORIZON_MONTHS}" >> "$LOG"
+echo "$ts OK all parents covered through month+${HORIZON_MONTHS} sha=$RELEASE_SHA" >> "$LOG"
 exit 0

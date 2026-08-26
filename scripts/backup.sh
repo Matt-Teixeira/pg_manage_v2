@@ -13,6 +13,14 @@
 
 set -euo pipefail
 
+# Release provenance: build-release.sh stamps RELEASE_SHA into the .env one
+# level up; every log line below carries it, so backup.log identifies the
+# commit that produced each run. A dev clone has no stamp -> 'dev-tree'.
+# grep a single key, never `source` a fleet .env (values may contain $$).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RELEASE_SHA="$(grep -m1 '^RELEASE_SHA=' "$SCRIPT_DIR/../.env" 2>/dev/null | cut -d= -f2)"
+RELEASE_SHA="${RELEASE_SHA:-dev-tree}"
+
 BASE=/opt/resources/backups
 # The database name is per-server (dev / staging / prod — see the setup doc's
 # server-identity table). Override via environment or edit the default here.
@@ -27,9 +35,9 @@ mkdir -p "$BASE/pg" "$BASE/redis"
 # Single-instance lock: if a previous backup is still running (e.g. a very long
 # pg_dump), skip this run and log it rather than stacking two dumps (OPS-01).
 exec 9>"$BASE/.backup.lock"
-flock -n 9 || { echo "$(date -Is) SKIPPED: previous backup still running" >> "$LOG"; exit 0; }
+flock -n 9 || { echo "$(date -Is) SKIPPED: previous backup still running sha=$RELEASE_SHA" >> "$LOG"; exit 0; }
 
-fail() { echo "$(date -Is) FAILED: $*" | tee -a "$LOG" >&2; exit 1; }
+fail() { echo "$(date -Is) FAILED: $* sha=$RELEASE_SHA" | tee -a "$LOG" >&2; exit 1; }
 
 # --- PostgreSQL -------------------------------------------------------------
 # log.saved_files is INCLUDED again as of 2026-08-18: its 48 h retention was
@@ -58,7 +66,7 @@ done
 find "$BASE/pg"    -name "$PG_DB-*.dump" -mtime +"$PG_KEEP_DAYS"    -delete
 find "$BASE/redis" -name '*.rdb'          -mtime +"$REDIS_KEEP_DAYS" -delete
 
-echo "$(date -Is) OK pg=$(du -h "$PG_OUT" | cut -f1) redis=4 instances" | tee -a "$LOG"
+echo "$(date -Is) OK pg=$(du -h "$PG_OUT" | cut -f1) redis=4 instances sha=$RELEASE_SHA" | tee -a "$LOG"
 
 # --- Off-host sync (TODO: enable once a target exists) ----------------------
 # az storage blob upload-batch ... / rclone sync "$BASE" remote:acq-vm-0-backups
