@@ -18,7 +18,9 @@ set -euo pipefail
 # commit that produced each run. A dev clone has no stamp -> 'dev-tree'.
 # grep a single key, never `source` a fleet .env (values may contain $$).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RELEASE_SHA="$(grep -m1 '^RELEASE_SHA=' "$SCRIPT_DIR/../.env" 2>/dev/null | cut -d= -f2)"
+# (|| true: under set -e/pipefail a no-match grep would otherwise kill the
+# script — which is every dev-clone run, where the stamp legitimately absent)
+RELEASE_SHA="$(grep -m1 '^RELEASE_SHA=' "$SCRIPT_DIR/../.env" 2>/dev/null | cut -d= -f2 || true)"
 RELEASE_SHA="${RELEASE_SHA:-dev-tree}"
 
 BASE=/opt/resources/backups
@@ -37,7 +39,41 @@ mkdir -p "$BASE/pg" "$BASE/redis"
 exec 9>"$BASE/.backup.lock"
 flock -n 9 || { echo "$(date -Is) SKIPPED: previous backup still running sha=$RELEASE_SHA" >> "$LOG"; exit 0; }
 
-fail() { echo "$(date -Is) FAILED: $* sha=$RELEASE_SHA" | tee -a "$LOG" >&2; exit 1; }
+# Every exit path must leave one log line and no unverified dump behind.
+# Previously a `set -e` failure outside fail(), or a TERM/INT, exited with NO
+# log line and left a partial $PG_OUT that looked like a good backup until
+# restore day. The EXIT trap is the catch-all; fail() marks DONE so handled
+# failures don't log twice. A dump is only kept once pg_restore --list has
+# verified it (PG_DUMP_VERIFIED) — a truncated dump is worse than none.
+# Note (verified by test): a TERM/INT exits promptly; an in-flight
+# `docker exec pg_db pg_dump` client may be left to finish on its own, but
+# its output file is already unlinked here, so no unverified dump survives.
+# Only SIGKILL bypasses this (no line, partial dump left).
+DONE=0
+PG_DUMP_VERIFIED=0
+drop_partial() {
+    if [ "$PG_DUMP_VERIFIED" = 0 ] && [ -n "${PG_OUT:-}" ] && [ -f "$PG_OUT" ]; then
+        rm -f "$PG_OUT"
+        echo " (partial dump removed)"
+    fi
+}
+cleanup() {
+    rc=$?
+    [ "$DONE" = 1 ] && exit "$rc"
+    note=$(drop_partial)
+    echo "$(date -Is) FAILED rc=$rc: aborted before completion (signal or unlogged failure)$note sha=$RELEASE_SHA" | tee -a "$LOG" >&2
+    exit "$rc"
+}
+trap cleanup EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
+
+fail() {
+    note=$(drop_partial)
+    echo "$(date -Is) FAILED: $*$note sha=$RELEASE_SHA" | tee -a "$LOG" >&2
+    DONE=1
+    exit 1
+}
 
 # --- PostgreSQL -------------------------------------------------------------
 # log.saved_files is INCLUDED again as of 2026-08-18: its 48 h retention was
@@ -50,6 +86,7 @@ docker exec pg_db pg_dump -U postgres -Fc "$PG_DB" > "$PG_OUT" \
 # A truncated dump is worse than none: verify the archive is listable.
 docker exec -i pg_db pg_restore --list < "$PG_OUT" > /dev/null \
   || fail "pg_restore --list on $PG_OUT (dump unreadable)"
+PG_DUMP_VERIFIED=1
 
 # --- Redis ------------------------------------------------------------------
 # redis-cli exits 0 even when the server refuses the command (e.g. NOAUTH), so
@@ -67,6 +104,7 @@ find "$BASE/pg"    -name "$PG_DB-*.dump" -mtime +"$PG_KEEP_DAYS"    -delete
 find "$BASE/redis" -name '*.rdb'          -mtime +"$REDIS_KEEP_DAYS" -delete
 
 echo "$(date -Is) OK pg=$(du -h "$PG_OUT" | cut -f1) redis=4 instances sha=$RELEASE_SHA" | tee -a "$LOG"
+DONE=1
 
 # --- Off-host sync (TODO: enable once a target exists) ----------------------
 # az storage blob upload-batch ... / rclone sync "$BASE" remote:acq-vm-0-backups

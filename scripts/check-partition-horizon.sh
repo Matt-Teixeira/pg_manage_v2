@@ -24,7 +24,7 @@ set -uo pipefail
 # level up; each appended log line carries it ('dev-tree' in a dev clone).
 # grep a single key, never `source` a fleet .env (values may contain $$).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RELEASE_SHA="$(grep -m1 '^RELEASE_SHA=' "$SCRIPT_DIR/../.env" 2>/dev/null | cut -d= -f2)"
+RELEASE_SHA="$(grep -m1 '^RELEASE_SHA=' "$SCRIPT_DIR/../.env" 2>/dev/null | cut -d= -f2 || true)"
 RELEASE_SHA="${RELEASE_SHA:-dev-tree}"
 
 LOG=/opt/run-logs/partition-watchdog.log
