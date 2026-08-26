@@ -1,10 +1,13 @@
 # CLAUDE.md — pg_manage_v2
 
-> **⚠️ MID-MIGRATION (started 2026-08-26).** This repo is being aligned to the fleet
-> dev/release paradigm — spec: `data_acquisition/docs/migration_CLAUDE.md` (Part 1 =
-> conventions, Part 3 = checklist). Until this banner is removed, sections below may
-> still describe the **pre-migration** state; where this file and the paradigm spec
-> disagree, the spec wins. Sections are corrected in the commit that makes them true.
+> **⚠️ MIGRATION VERIFYING (cutover executed 2026-08-26 ~19:05 UTC).** Aligned to the
+> fleet dev/release paradigm — spec: `data_acquisition/docs/migration_CLAUDE.md`.
+> Release `03b1a1a` is deployed and the hardened crontab installed; what remains is
+> the daily-clock verification: two nightly `backup.log` lines carrying
+> `sha=03b1a1a` (expected clean by the morning of 2026-08-28). Remove this banner
+> after that, and cut one more release so `/opt/apps` carries the closeout docs.
+> (The watchdog verified from the release copy 2026-08-26; its next scheduled tick
+> is Sep 3 and reports on its own clock.)
 >
 > Shape note: this is an **admin/infra repo** (host tooling, not a containerized job
 > app), so only part of the paradigm applies — see *Paradigm application* below.
@@ -25,8 +28,11 @@ vendored logger. Their run record is their own log file, not `util.app_run_logs`
 
 | Script | Schedule (matt-teixeira's USER crontab) | Run record |
 |---|---|---|
-| `scripts/backup.sh` | `15 2 * * *` nightly | appends to `/opt/resources/backups/backup.log` |
-| `scripts/check-partition-horizon.sh` | `0 9 3,25 * *` | appends to `/opt/run-logs/partition-watchdog.log`; **ALERT goes to stdout → cron mail** |
+| `scripts/backup.sh` | `15 2 * * *` nightly, `>/opt/run-logs/pg_manage_v2/cron.backup.out 2>&1` | appends to `/opt/resources/backups/backup.log` |
+| `scripts/check-partition-horizon.sh` | `0 9 3,25 * *`, **no redirect on purpose** | appends to `/opt/run-logs/partition-watchdog.log`; **ALERT goes to stdout → cron mail** |
+
+Every log line both scripts write ends `sha=<RELEASE_SHA|dev-tree>` — the release
+provenance for this app (grep'd from the `.env` beside the scripts, never sourced).
 
 - `backup.sh`: `pg_dump -Fc` of the per-server database (`PG_DB`, default `staging`),
   verified with `pg_restore --list`; authenticated `SAVE` + RDB copy of all four
@@ -59,7 +65,7 @@ fleet Docker pattern (see *Paradigm application*).
 
 ## Paradigm application (what applies here, what is skipped)
 
-Applies (being adopted in this migration):
+Applies (adopted 2026-08-26):
 
 - **Dev/release split**: editable clone at `~/apps/pg_manage_v2`; `/opt/apps/pg_manage_v2`
   is build output produced only by `build-release.sh` (clean-tree guard, `#RELEASE:`
@@ -87,6 +93,30 @@ Skipped, deliberately (admin-repo shape):
   backup.sh's fail-loud `FAILED:` log lines and non-zero exits.
 - **Schedule move to svc crontab** — standing decision: existing user-crontab
   schedules stay put until the fleet-wide consolidation.
+
+## Day-to-day operations
+
+```bash
+# Validate the environment (either copy; zero warnings is the standard)
+bash preflight-check.sh
+
+# Edit code ONLY in the dev clone; a dev run of either script logs sha=dev-tree
+cd ~/apps/pg_manage_v2 && bash scripts/check-partition-horizon.sh
+
+# Release: commit + push, then (needs sudo, run in your own terminal)
+cd ~/apps/pg_manage_v2 && bash build-release.sh
+# refuses a dirty tree; wipes /opt/apps/pg_manage_v2 and redeploys HEAD with
+# RELEASE_SHA stamped into the deployed .env, owned svc:docker
+
+# Provenance queries
+grep 'sha=' /opt/resources/backups/backup.log | tail
+tail /opt/run-logs/partition-watchdog.log
+cat /opt/run-logs/pg_manage_v2/cron.backup.out   # last cron invocation only
+```
+
+`/opt/apps/pg_manage_v2` is **build output** — never edit it, it is not a git
+checkout. A `sha=dev-tree` line appearing on the nightly schedule means cron is
+somehow running a dev tree — investigate immediately.
 
 ## Branches / server identity
 
