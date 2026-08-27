@@ -27,7 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RELEASE_SHA="$(grep -m1 '^RELEASE_SHA=' "$SCRIPT_DIR/../.env" 2>/dev/null | cut -d= -f2 || true)"
 RELEASE_SHA="${RELEASE_SHA:-dev-tree}"
 
-LOG=/opt/run-logs/partition-watchdog.log
+LOG=/opt/run-logs/pg_manage_v2/partition-watchdog.log
 HORIZON_MONTHS="${HORIZON_MONTHS:-2}"
 
 result=$(docker exec -i pg_db psql -U postgres -d "${PG_DB:-staging}" -tA -v ON_ERROR_STOP=1 <<SQL 2>&1
